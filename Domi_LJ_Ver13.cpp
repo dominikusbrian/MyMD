@@ -16,11 +16,13 @@ using namespace std;
 
 ////////////////////////// Global parameters  ////////////////////////////////
 
-const int N = 16;							// N is the number of particle within the system
+const int N = 3;							// N is the number of particle within the system
 const int DIM = 3;							// DIM is dimension of the problem
-const int tmax = 100000;						// maximum number of timestep
-const double rho = 1;						// System's volume density
+const int tmax = 100000;					// maximum number of timestep or simulation duration
+const double rho = 0.5;						// System's volume density
+double dt = 0.0001;							// Simulation timestep size
 const double L = N / rho;					// Box size
+const double delta_r = 0.2;					// bin width for rdf analysis
 const int size_pair = (N * (N - 1)) / 2;	// array size for the total number of pairs 
 
 
@@ -97,14 +99,15 @@ int main() {
 
 	//Write initial configuration to config.csv 
 	myfile.open("config.csv");
-	myfile << "#N" << "," << "rx" << "," << "ry" << "," << "rz" << "," << "vx" << "," << "vy" << "," << "vz" << endl;
+	myfile << "N" << "," << "rx" << "," << "ry" << "," << "rz" << "," << "vx" << "," << "vy" << "," << "vz" << endl;
 	for (i = 0; i < N; i++) {
 		myfile << i << "," << r[i][0] << "," << r[i][1] << "," << r[i][2] << "," << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
 	}
 	myfile.close();
 
 	myfile.open("rdf_orig.csv");
-	myfile << "(n - 1) * delta_r" << "," << "n * delta_r" << "," << "count" << "," << "g_r" << endl;
+	myfile << "r" << "," << "r_plus_dr" << "," << "hist_count" << "," << "g_r" << "," << "Probability" << endl;
+	myfile << 0 << "," << delta_r << "," << 0 << "," << 0 << "," << 0 << endl;
 	rdf(r);
 	myfile.close();
 	
@@ -113,7 +116,7 @@ int main() {
 
 	cout << "------------------BEGIN PROPAGATION ----------------------" << endl;
 	//Write Energy value at each time step into properties.csv
-	myfile.open("properties.csv");
+	myfile.open("prop.csv");
 	myfile << "t" << "," << "Potential" << "," << "Kinetic" << "," << "Total" << "," << "Temperature" << endl;
 	for (t = 0; t < tmax; t++) {
 	
@@ -136,14 +139,15 @@ int main() {
 
 	//Write Final Configuration to final_config.csv
 	myfile.open("finalconfig.csv");
-	myfile << "#N" << "," << "rx" << "," << "ry" << "," << "rz" << "," << "vx" << "," << "vy" << "," << "vz" << endl;
+	myfile << "N" << "," << "rx" << "," << "ry" << "," << "rz" << "," << "vx" << "," << "vy" << "," << "vz" << endl;
 	for (i = 0; i < N; i++) {
 		myfile << i << "," << r[i][0] << "," << r[i][1] << "," << r[i][2] << "," << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
 	}
 	myfile.close();
 
 	myfile.open("rdf_final.csv");
-	myfile << "r" << "," << "r_plus_dr" << "," << "hn" <<","<< "g_r" <<","<< "Probability" <<endl;
+	myfile << "r" << "," << "r_plus_dr" << "," << "hist_count" << "," << "g_r" << "," << "Probability" << endl;
+	myfile << 0 << "," << delta_r << "," << 0 << "," << 0 << "," << 0 << endl;
 	rdf(r);
 	myfile.close();
 	cout << "------------------END OF SIMULATION ----------------------" << endl;
@@ -160,8 +164,9 @@ int main() {
 // 1) Config_Atoms,         // for 3 atoms in a specific arrangement
 // 2) Config_atoms_2 ,		// for 2 atoms in a specific arrangement
 // 3) Config_atoms_rand		// for N number of atoms with random position and velocity value between 0 and 1
-// 'Under construction' 4) Config_atoms_bcc		// for 4*N number of atoms with bcc arrangement
-// 'Under construction' 5) Config_atoms_fcc		// for 4*N number of atoms with fcc arrangement
+// 4) Config_atoms_lattice	// for simple cubic arrangement with lattice spacing of 1(in all direction x,y,z)
+// 'Under construction' 5) Config_atoms_bcc		// for 4*N number of atoms with bcc arrangement
+// 'Under construction' 6) Config_atoms_fcc		// for 4*N number of atoms with fcc arrangement
 void Config_atoms(double r[N][DIM], double v[N][DIM]) {
 
 	/// <Ordered Configuration for three particles system>
@@ -373,13 +378,12 @@ void Force_Calc(double r[N][DIM], double F[N][DIM], double& E_pot) {
 
 }
 
-
 // Velocity-Verlet Integrator
 void Vel_Verlet(double r[N][DIM], double v[N][DIM], double F[N][DIM], double& U_LJ, double& E_kin) {
 
 	int i;
 	//constants
-	double dt = 0.0001;							// timestep size
+	
 	double half_dt = 0.5 * dt;					// Half of dt
 	double v_half[N][DIM];						// Velocity at half_dt
 	//E_kin = 0;
@@ -458,7 +462,7 @@ void E_kin_Calc(double v[N][DIM], double& E_kin) {
 
 }
 
-// Periodic Boundary Condition 
+// Periodic Boundary Condition for coordinate
 double PBC(double x1, double x2) {
 	if (x1 - x2 < (-0.5 * L)) {
 		return (x1 - x2) + L;
@@ -473,6 +477,7 @@ double PBC(double x1, double x2) {
 	return x1, x2;
 }
 
+// Periodic Boundary Condition for force
 double forcePBC(double x) {
 	if (x < (-0.5 * L)) {
 		return  x + L;
@@ -490,27 +495,24 @@ double forcePBC(double x) {
 //Radial Distribution Function (RDF)
 void rdf(double r[N][DIM]) {
 	/*
-	g_r  = histogram / rho*N*(volume of shell = 4*PI *r^2*dr)
-
+	g_r  = histogram / rho_bulk *N*(volume of shell = 4*PI *r^2*dr)
+	//rho_bulk is Number of particle / box Volume or N/(L*L*L)
 	*/
 	int i, j, n;
 	double rij_vec[DIM] = { 0 };
 	double rij = 0;
-	const double r_start = 1.0;					// Shell diameter considered.
-	double r_start_sq = r_start * r_start;		// Square of r_start
-	const double delta_r = 0.5;					// bin width 
-	const int bin = (L / delta_r);					// array size for the total no of bins.
-	const double rcut = (0.5 * L);			// Cut-off Radius
-	double total[size_pair] = { 0 };
+	const double bin = (L / delta_r);					// array size for the total no of bins.
+	const double rcut = (0.5 * L);				// Cut-off Radius
+	//double total[size_pair] = { 0 };
 	n = 0;
-	double g_r = 0;					// pair correlation function
-	double count = 0;
-	double myrdf = 0;
-	double Prob = 0; 
+	double g_r = 0;							// pair correlation function
+	double count = 0;						// histogram counter
+	double Prob = 0;	
+	double Volume = L * L * L;				//volume of simulation box
 
 
 
-		for (n = 1; n < bin+1; n++) {
+		for (n = 2; n < bin+2; n++) {
 			count = 0;
 
 			for (i = 0; i < N - 1; i++) {
@@ -522,23 +524,23 @@ void rdf(double r[N][DIM]) {
 					rij_vec[2] = r[j][2] - r[i][2];
 					rij = sqrt(rij_vec[0] * rij_vec[0] + rij_vec[1] * rij_vec[1] + rij_vec[2] * rij_vec[2]);
 					//cout << "my rij is " << rij << endl;
-					total[n] = 0;
+					//total[n] = 0;
 					//cout << "my n-1 *delta_r is " << ((n-1.0) * delta_r) << endl;
 					//cout << "my n*delta_r is " << (n * delta_r) << endl;
 					if (rij > ((n - 1.0) * delta_r) && rij < (n * delta_r)) {
 
 					 count++;
-		
+					 
 					}
 					
 				}
 				
-
 			}
 			//cout << "count is  " << count << endl;
-			g_r = count / ((N * 4 * PI * ((n-1*delta_r)* (n - 1 * delta_r)) * delta_r * rho));
+			g_r = (count * (Volume)) / (N  * 4.0 * PI * (((n - 1.0) * delta_r) * ((n - 1.0) * delta_r)) * delta_r * N);
 			Prob = count / size_pair;
-			myfile << (n - 1) * delta_r << "," << n * delta_r << "," << count <<","<<g_r<<","<<Prob<< endl;
+			
+			myfile << ((n - 1.0) * delta_r)/sigma << "," << n * delta_r << "," << count <<","<<g_r<<","<<Prob<< endl;
 
 		}
 
