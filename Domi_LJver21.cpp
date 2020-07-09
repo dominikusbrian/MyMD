@@ -12,17 +12,19 @@
 #include <math.h>
 #include <fstream>
 #include <time.h>
+#include <random>
 using namespace std;
+default_random_engine e(23238);
 
 ////////////////////////// Global parameters  ////////////////////////////////
 
 const int N = 64;							// N is the number of particle within the system
 const int DIM = 3;							// DIM is dimension of the problem
-const int tmax = 500;						// maximum number of timestep or simulation duration
+const int tmax = 5000;						// maximum number of timestep or simulation duration
 const double rho = 0.8;						// System's volume density
 double dt = 0.001;							// Simulation timestep size
 double Init_Temp = 1;						// Temperature
-const double Volume = N / rho;
+const double Volume = N / rho; 
 double edge = cbrt(Volume);					// Box edge size
 const double delta_r = 0.2;					// bin width for rdf analysis
 const int size_pair = (N * (N - 1)) / 2;	// array size for the total number of pairs 
@@ -74,7 +76,7 @@ void Config_Temp(double v[N][DIM], double& Temp);
 
 //Periodic Boundary Condition
 double PBC(double x1, double x2);
-double forcePBC(double x);
+void forcePBC(double& rij);
 
 //radial distribution function  
 void rdf(double r[N][DIM], double g_r[size_bin], double g_ave[size_bin], int& divider);
@@ -92,10 +94,10 @@ int main() {
 	double E_tot = 0;				// Total Energy	
 	int divider = 0;				// Counter for dividing accumulator
 	int counter = 0;
-	int write_traj = 500;
+	int write_traj = 250;
 	double rij = 0;					// pair distance
 	double Temp = 0;				// Instaneous temperature to be calculated from kinetic energy
-	double g_r[size_bin];			// Instaneous rdf 
+	double g_r[size_bin] = { 0 };			// Instaneous rdf 
 	double g_ave[size_bin] = { 0 };	// Accumulated average of rdf for a given frame
 	const double t_corr = 10;
 	double Delta_t = 1;
@@ -147,9 +149,10 @@ int main() {
 	cout << "------------------BEGIN INITIALIZATION----------------------" << endl;
 
 	//Initialize Position
-	Config_atoms_rand(r);
+	Config_atoms_lattice(r);
 	//Initialize Velocity
 	Config_velocity(v);
+	 
 	//Initialize Temperature
 	Config_Temp(v, Temp);
 	//Initialize Force
@@ -185,6 +188,10 @@ int main() {
 		v[i][1] = 0;
 		v[i][2] = 0;
 	}
+
+	for (i = 0; i < N; i++) {
+		myfile << i << "," << r[i][0] << "," << r[i][1] << "," << r[i][2] << "," << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
+	}
 	cout << "------------------INITIALIZATION COMPLETE ----------------------" << endl;
 	cout << "------------------BEGIN PROPAGATION ----------------------" << endl;
 	//Write Energy value at each time step into properties.csv
@@ -200,6 +207,7 @@ int main() {
 	for (t = 0; t < tmax; t++) {
 
 		//cout << "the t is : " << t << endl;
+		//cout << "v before first verlet= " << v[i][0] << endl;
 		if (t == 0) {
 			Vel_Verlet_first(r, v, F, E_pot, E_kin);
 			E_tot = E_kin + E_pot;
@@ -217,7 +225,7 @@ int main() {
 			rdf(r, g_r, g_ave, divider);
 		}
 
-
+		//cout << "v after verlet= " << v[i][0] << endl;
 
 		//Velocity auto-correlation function
 
@@ -258,7 +266,7 @@ int main() {
 				cvv_ave[k] = 0;
 				for (i = 0; i < N; i++) {
 					cvv_dt[i] = ((vx[k][i] * vx[k + 1][i] + vy[k][i] * vx[k + 1][i] + vz[k][i] * vx[k + 1][i]) / N);
-					cvv_ave[k] += (cvv_dt[i]);
+					cvv_ave[k] += (cvv_dt[i])/(t-t_corr);
 					//cvv_ave[k] = cvv_ave[k] * (1 / (t - t_corr));
 					//cout << t << "," << cvv_dt[i] << "," << cvv_ave[k] << "," << cvv_accum << endl;
 					//cout << "cvv execution is fine" << endl;
@@ -342,11 +350,11 @@ int main() {
 	// Initialize position
 	
 	void Config_atoms_lattice(double r[N][DIM]) {
-		int edge = 4;    
+		//int edge = 4;    
 		int i;
 		double ix, iy, iz;
 
-		while ((edge * edge * edge) < N)edge++;
+		//while ((edge * edge * edge) < N)edge++; // creating unit lattice with volume does not exceeed my no of mollecule 
 
 		ix = iy = iz = 0;
 		// assigning particle positions
@@ -359,18 +367,18 @@ int main() {
 							 {0.5, 0.0, 0.5}, {0.5, 0.5, 0.0} };*/
 		for (i = 0; i < N; i++) {
 
-			r[i][0] = ix * Volume / edge;
-			r[i][1] = iy * Volume / edge;
-			r[i][2] = iz * Volume / edge;
+			r[i][0] = ix * 0.25*edge;
+			r[i][1] = iy * 0.25*edge;
+			r[i][2] = iz * 0.25*edge;
 
 			//r[i][0] = ((double)ix + lattice_spacing) * L / edge;
 			//r[i][1] = ((double)iy + lattice_spacing) * L / edge;
 			//r[i][2] = ((double)iz + lattice_spacing) * L / edge;
 			ix++;
-			if (ix == edge) {
+			if (ix >=edge) {
 				ix = 0;
 				iy++;
-				if (iy == edge) {
+				if (iy >=edge) {
 					iy = 0;
 					iz++;
 				}
@@ -378,7 +386,7 @@ int main() {
 		}
 	
 	}
-		
+	
 
 	void Config_atoms_rand(double r[N][DIM]) {
 		int i, k;
@@ -392,7 +400,7 @@ int main() {
 			for (k = 0; k < DIM; k++) {
 
 				/* generate random number between 0.5 to 1.5: */
-				r[i][k] = (((double)rand() * (edge - 0.1)) / (double)RAND_MAX + 1.0);
+				r[i][k] = (((double)rand() * (edge - 0.1)) / (double)RAND_MAX);
 
 			}
 		}
@@ -404,26 +412,27 @@ int main() {
 
 		int i;
 		double v_com[DIM];  //com is center of mass
-		double v_mag = sqrt((3 * (N * Init_Temp * kB)) / mass);
+		double v_mag = sqrt(3 * Init_Temp * kB / mass);
 
-		for (i = 0; i < DIM; i++)v_com[i] = 0;
+		for (i = 0; i < DIM; i++) { v_com[i] = 0; }
 		// the random number generator generate random number between 1-2
 		for (i = 0; i < N; i++) {
 			//cout << "v_mag is = " << v_mag << endl;
-			v[i][0] = (v_mag * (((double)rand() * (1.0- 0.1)) / (double)RAND_MAX + 1.0));
-			v[i][1] = (v_mag * (((double)rand() * (1.0 - 0.1)) / (double)RAND_MAX + 1.0));
-			v[i][2] = (v_mag * (((double)rand() * (1.0 - 0.1)) / (double)RAND_MAX + 1.0));
+			
+			//v[i][0] = (v_mag * e()/10000000000);
+			//v[i][1] = (v_mag * e()/10000000000);
+			//v[i][2] = (v_mag * e()/10000000000);
+
+			v[i][0] = (v_mag * (((double)rand() * (2- 0.1)) / (double)RAND_MAX));
+			v[i][1] = (v_mag * (((double)rand() * (2 - 0.1)) / (double)RAND_MAX));
+			v[i][2] = (v_mag * (((double)rand() * (2 - 0.1)) / (double)RAND_MAX));
 
 			//cout << "vx, vy, vz is = " << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
-			v_com[0] += v[i][0];
-			v_com[1] += v[i][1];
-			v_com[2] += v[i][2];
+			v_com[0] += (v[i][0]/N);
+			v_com[1] += (v[i][1]/N);
+			v_com[2] += (v[i][2]/N);
 
 		}
-		//cout << "v_com x, y, z is = " << v_com[0] << "," << v_com[1] << "," << v_com[2] << endl;
-		v_com[0] /= N; //averaged the velocities
-		v_com[1] /= N;
-		v_com[2] /= N;
 
 		//cout << "v_com x, y, z after averaged is = " << v_com[0] << "," << v_com[1] << "," << v_com[2] << endl;
 		for (i = 0; i < N; i++) {
@@ -431,7 +440,7 @@ int main() {
 			v[i][1] -= v_com[1];
 			v[i][2] -= v_com[2];
 
-			//cout << "vx, vy, vz after substraction is = " << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
+	//cout << "vx, vy, vz after substraction is = " << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
 		}
 
 	}
@@ -439,11 +448,15 @@ int main() {
 	// Initialize Temperature
 	void Config_Temp(double v[N][DIM], double& Temp) {
 		int i;
-		double v_sq = 0;
+		double v_sq[N] = {0};
+		double v_sq_accum = 0;
 		for (i = 0; i < N; i++) {
-			v_sq += (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]);
+			v_sq[i] = (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]);
+			v_sq_accum += (v_sq[i]/N);
 		}
-		Temp = (mass * v_sq / (3 * (N * kB)));
+		Temp = mass * v_sq_accum / (3 *kB);
+		cout << "my v_sq_accum is " << v_sq_accum << endl;
+		cout << "my temp fresh from the oven is " << Temp << endl;
 	}
 
 
@@ -467,7 +480,7 @@ int main() {
 
 		//for simplicity
 
-		const double rcut = (0.5 * edge);			// Cut-off Radius
+		const double rcut = (0.5*edge);			// Cut-off Radius
 		double sigma2 = sigma * sigma;			// sigma squared
 		//double rij1 = 0;						// rij
 		double rij6 = 0;						// sigma^6 / rij^6
@@ -489,16 +502,19 @@ int main() {
 			for (j = i + 1; j < N; j++) {
 
 				//for dimension, where 0 = x,  1 = y = 1, 2 = z
+				rij_vec[0] = (r[j][0]- r[i][0]);
+				rij_vec[1] = (r[j][1]- r[i][1]);
+				rij_vec[2] = (r[j][2]- r[i][2]);
 
-				rij_vec[0] = PBC(r[j][0], r[i][0]);
-				rij_vec[1] = PBC(r[j][1], r[i][1]);
-				rij_vec[2] = PBC(r[j][2], r[i][2]);
+				//rij_vec[0] = PBC(r[j][0], r[i][0]);
+				//rij_vec[1] = PBC(r[j][1], r[i][1]);
+				//rij_vec[2] = PBC(r[j][2], r[i][2]);
 
-
+				//cout << "rij_vec x,y,z = " << rij_vec[0] << "," << rij_vec[1] << "," << rij_vec[2] << endl;
 				rij = rij_vec[0] * rij_vec[0] + rij_vec[1] * rij_vec[1] + rij_vec[2] * rij_vec[2];
 				//cout << "rij before forcepbc = " << rij << endl;
 
-				forcePBC(rij);
+				//forcePBC(rij);
 				//cout << "rij after forcepbc = " << rij << endl;
 
 				if (sqrt(rij) < rcut) {
@@ -525,9 +541,11 @@ int main() {
 					F[i][0] += dU_LJ * rij_vec[0];
 					F[i][1] += dU_LJ * rij_vec[1];
 					F[i][2] += dU_LJ * rij_vec[2];
+
 					F[j][0] -= dU_LJ * rij_vec[0];
 					F[j][1] -= dU_LJ * rij_vec[1];
 					F[j][2] -= dU_LJ * rij_vec[2];
+					//cout << "F after force calc is " << F[i][k] << endl;
 
 				}
 
@@ -645,7 +663,7 @@ int main() {
 
 			//updating velocity at t + dt
 
-				//cout << "Recalculated force is = " << F[i][0] << "," << F[i][1] << "," << F[i][2] << endl;
+			cout << "Recalculated force is = " << F[i][0] << "," << F[i][1] << "," << F[i][2] << endl;
 
 
 			v[i][0] = v_half[i][0] + half_dt * F[i][0] / mass;
@@ -657,9 +675,13 @@ int main() {
 
 			//velocity scaling for adjusting temperature
 			Config_Temp(v, Temp);
+			cout << "my Temp " << Temp << endl;
 			v[i][0] = v[i][0] * sqrt(Init_Temp / Temp);
 			v[i][1] = v[i][1] * sqrt(Init_Temp / Temp);
 			v[i][2] = v[i][2] * sqrt(Init_Temp / Temp);
+
+			cout << "after scaling " << "," << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
+
 
 			//updating kinetic energy 
 			kinetic[i] = (mass * 0.5) * (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]);
@@ -705,18 +727,17 @@ int main() {
 	}
 
 	// Periodic Boundary Condition for force
-	double forcePBC(double x) {
-		if (x < (-0.5 * edge)) {
-			return  x + edge;
+	void forcePBC(double& rij) {
+		if (rij < (-0.5 * edge)) {
+			rij= (rij + edge);
 		}
 
-		if (x > (0.5 * edge)) {
-			return x - edge;
+		if (rij > (0.5 * edge)) {
+			rij= (rij - edge);
 		}
 		else {
-			return x;
+			rij=rij;
 		}
-		return x;
 	}
 
 	void rdf(double r[N][DIM], double g_r[size_bin], double g_ave[size_bin], int& divider) {
