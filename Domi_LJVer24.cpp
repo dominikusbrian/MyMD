@@ -21,7 +21,7 @@ default_random_engine e(23238);
 
 const int N = 108;							// N is the number of particle within the system
 const int DIM = 3;							// DIM is dimension of the problem
-const int tmax = 200000;						// maximum number of timestep or simulation duration
+const int tmax = 150000;						// maximum number of timestep or simulation duration
 const double rho = 0.8;						// System's volume density
 double dt = 0.001;							// Simulation timestep size
 double Init_Temp = 1;						// Temperature
@@ -84,7 +84,7 @@ double forcePBC(double rij);
 void rdf(double r[N][DIM], double g_r[size_bin], double g_ave[size_bin], int& divider);
 
 //Velocity scaling
-void Vel_scaling( double v[N][DIM], double& E_kin, double& Temp);
+void Vel_scaling( double v[N][DIM], double& E_kin, double& Temp_ave);
 
 /*------------------------Main function begin here------------------------ */
 
@@ -114,12 +114,14 @@ int main() {
 	double cvv_ave[storage] = { 0 };
 	//double cvv_accum[storage];
 	int k = 0;
-	//double temp_accum[100]={0};
+	int j = 0;
+	double Temp_ave = 0;
+	
 
 	// filestream control
 	int startcvv = 50000;
-	int start_vel_scaling = 10000;
-	int finish_vel_scaling = 100000;
+	int start_vel_scaling = 1000;
+	int finish_vel_scaling = 10000;
 	int startrdf = 50000;
 	int write_prop = 50000;
 	int write_traj = 500;
@@ -237,25 +239,28 @@ int main() {
 
 
 
-		/*
-		counter = 1;
-		while (t<(1000*counter)-100 && t<(1000*counter)) {
-		divider =1;
-			Temp_accum[i] = Temp;
-			Temp_ave += Temp_accum[i]/divider;
-			divider++;
-			cout<<"Temp is "<<Temp<<endl;
-			cout<<"Temp_ave is "<<Temp_ave<<endl;
+		
+		// Getting average temperature from previous 100 instants, when t is a multiple of 1000;
+		if (t > (1000 * j) - 100 && t <= (1000 * j)) {
+			
+			//cout << "Temp is " << Temp << endl;
+			Temp_ave += Temp;
+			
+			
+			if (t == (1000 * j)) {
+				Temp_ave = Temp_ave/100;
+				//cout << "Temp_ave is " << Temp_ave << endl;
+				j++;
+			}
 		}
-		if(t==1000*counter) counter++;
 
-		*/
-
-
-
-		if (t % start_vel_scaling == 0 && t < finish_vel_scaling) {
-			Vel_scaling(v, E_kin, Temp);
+		if (t >2000 && t % start_vel_scaling == 0 && t < finish_vel_scaling) {
+			Vel_scaling(v, E_kin, Temp_ave);
 		}
+
+
+
+
 
 		// Radial distribution function (RDF) analysis
 		if (t >= startrdf && t % 10 == 0) {
@@ -292,33 +297,33 @@ int main() {
 		// a function that call the appropriate velocity for a given time
 		//if (t=0) cvv_accum = 
 			//while (t > startcvv) {
-				if (t > (t_corr * counter) + 1) {   //Cvv calculation will be skip for all t=0 and t=1 (the same applies fort =  10,11,20,21, and so on ) 
+			if (t > (t_corr * counter) + 1) {   //Cvv calculation will be skip for all t=0 and t=1 (the same applies fort =  10,11,20,21, and so on ) 
 
-					if (k > 0 && k <= 10) {
-						cvv_ave[k] = 0;
-						for (i = 0; i < N; i++) {
-							cvv_dt[i] = ((vx[k][i] * vx[k + 1][i] + vy[k][i] * vx[k + 1][i] + vz[k][i] * vx[k + 1][i]) / N);
-							cvv_ave[k] += (cvv_dt[i]) / (t - (double)t_corr);
-							//cvv_ave[k] = cvv_ave[k] * (1 / (t - t_corr));
-							//cout << t << "," << cvv_dt[i] << "," << cvv_ave[k] << "," << cvv_accum << endl;
-							//cout << "cvv execution is fine" << endl;
-						}
-						cvv_accum += (cvv_ave[k]);
-						//cout << t << "," << k << "," << cvv_ave[k] << "," << cvv_accum << endl;
-						//cout << "if k is fine " << endl;
+				if (k > 0 && k <= 10) {
+					cvv_ave[k] = 0;
+					for (i = 0; i < N; i++) {
+						cvv_dt[i] = ((vx[k][i] * vx[k + 1][i] + vy[k][i] * vx[k + 1][i] + vz[k][i] * vx[k + 1][i]) / N);
+						cvv_ave[k] += (cvv_dt[i]) / (t - (double)t_corr);
+						//cvv_ave[k] = cvv_ave[k] * (1 / (t - t_corr));
+						//cout << t << "," << cvv_dt[i] << "," << cvv_ave[k] << "," << cvv_accum << endl;
+						//cout << "cvv execution is fine" << endl;
 					}
-					//cout << t << "," << cvv_accum << endl;
-
-
+					cvv_accum += (cvv_ave[k]);
+					//cout << t << "," << k << "," << cvv_ave[k] << "," << cvv_accum << endl;
+					//cout << "if k is fine " << endl;
 				}
+				//cout << t << "," << cvv_accum << endl;
 
-				if (k >= 10) {
-					if (t >= startcvv + 20) cvvfile << t << "," << cvv_accum << endl;
-					k = 0;
-					counter++;
 
-					cvv_accum = 0;
-				}
+			}
+
+			if (k >= 10) {
+				if (t >= startcvv + 20) cvvfile << t << "," << cvv_accum << endl;
+				k = 0;
+				counter++;
+
+				cvv_accum = 0;
+			}
 			//}
 		}
 
@@ -354,12 +359,12 @@ int main() {
 
 	//Write Final Configuration to final_config.csv
 	myfile.open("finalconfig.txt");
-		for (i = 0; i < N; i++) myfile << r[i][0] << endl;
-		for (i = 0; i < N; i++) myfile << r[i][1] << endl;
-		for (i = 0; i < N; i++) myfile << r[i][2] << endl;
-		for (i = 0; i < N; i++) myfile << v[i][0] << endl;
-		for (i = 0; i < N; i++) myfile << v[i][1] << endl;
-		for (i = 0; i < N; i++) myfile << v[i][2] << endl;
+	for (i = 0; i < N; i++) myfile << r[i][0] << endl;
+	for (i = 0; i < N; i++) myfile << r[i][1] << endl;
+	for (i = 0; i < N; i++) myfile << r[i][2] << endl;
+	for (i = 0; i < N; i++) myfile << v[i][0] << endl;
+	for (i = 0; i < N; i++) myfile << v[i][1] << endl;
+	for (i = 0; i < N; i++) myfile << v[i][2] << endl;
 	myfile.close();
 
 	cout << "------------------END OF SIMULATION ----------------------" << endl;
@@ -735,7 +740,7 @@ void Vel_Verlet_first(double r[N][DIM], double v[N][DIM], double F[N][DIM], doub
 
 }
 
-void Vel_scaling( double v[N][DIM], double& E_kin, double& Temp) {
+void Vel_scaling( double v[N][DIM], double& E_kin, double& Temp_ave) {
 	int i;
 	
 	//double kinetic[N];
@@ -747,9 +752,9 @@ void Vel_scaling( double v[N][DIM], double& E_kin, double& Temp) {
 		//cout << "Temp is "<<Temp<<endl;;
 		//cout << "Init_Temp is "<<Init_Temp<<endl;;
 
-		v[i][0] = v[i][0] * sqrt(Init_Temp / Temp);
-		v[i][1] = v[i][1] * sqrt(Init_Temp / Temp);
-		v[i][2] = v[i][2] * sqrt(Init_Temp / Temp);
+		v[i][0] = v[i][0] * sqrt(Init_Temp / Temp_ave);
+		v[i][1] = v[i][1] * sqrt(Init_Temp / Temp_ave);
+		v[i][2] = v[i][2] * sqrt(Init_Temp / Temp_ave);
 		//cout << "after scaling " << "," << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
 
 		//updating kinetic energy 
@@ -829,8 +834,10 @@ void rdf(double r[N][DIM], double g_r[size_bin], double g_ave[size_bin], int& di
 		g_r[n] = (hist[n] * (Volume)) / (N * 4.0 * PI * (((n - 1.0) * delta_r) * ((n - 1.0) * delta_r)) * delta_r * N);
 		g_ave[n] += g_r[n];
 		//g_ave[n] += (g_ave[n] / divider);
-
+		if (divider > 7000) {
 		otherfile << "," << ((n - 1.0) * delta_r) / sigma << "," << n * delta_r << "," << count << "," << g_r[n] << "," << g_ave[n] << "," << divider << "," << g_ave[n] / divider << endl;
+		}
+		
 		//otherfile << "," << ((n - 1.0) * delta_r) / sigma << "," << n * delta_r << "," << count << "," << g_r[n] << endl;
 	}
 }
