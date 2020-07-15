@@ -39,7 +39,7 @@ const double kB = 1;					// 1.3807 x 10^-23 J /K
 
 const int N = 108;							// N is the number of particle within the system
 const int DIM = 3;							// DIM is dimension of the problem
-const int tmax = 10000;						// maximum number of timestep or simulation duration
+const int tmax = 20000;						// maximum number of timestep or simulation duration
 const double rho = 0.8;						// System's volume density
 double dt = 0.001;							// Simulation timestep size
 double Init_Temp = 1;						// Temperature
@@ -61,13 +61,13 @@ ofstream cvvfile;
 ofstream fullprop;
 
 // filestream control
-int startcvv = 20;
+int startcvv = 10000;
 int start_vel_scaling = 100;  // perform velocity scaling every start_vel_scaling steps
-int finish_vel_scaling = 800;
-int startrdf = 800;
+int finish_vel_scaling = 18000;
+int startrdf = 10000;
 int write_prop = 50000;
 int write_traj = 500;
-int start_write_traj = 800;
+int start_write_traj = 8000;
 /////////////////////////////*Function declaration:*/////////////////////////////////
 
 // Initialize Particle Position
@@ -114,10 +114,10 @@ int main() {
 	double Temp = Init_Temp;
 	double g_r[size_bin] = { 0 };			// Instaneous rdf 
 	double g_ave[size_bin] = { 0 };	// Accumulated average of rdf for a given frame
-	const int t_corr = 10;
+	const int t_corr = 30;
 	double Delta_t = 1;
 	double duration = t_corr / Delta_t;
-	const int storage = 15;
+	const int storage = 40;
 	double vx[storage][N] = { 0 }, vy[storage][N] = { 0 }, vz[storage][N] = { 0 };
 	double cvv_dt[N] = { 0 };
 	//double cvv_accum = 0;
@@ -299,63 +299,35 @@ int main() {
 			//cout << "vx = " << vx[k][i] << endl;
 			//cout << "vy = " << vy[k][i] << endl;
 			//cout << "vz = " << vz[k][i] << endl;
+		}
 
-		//}
 
-
-		// a function that call the appropriate velocity for a given time
-		//if (t=0) cvv_accum = 
-			//while (t > startcvv) {
-			/*
-			if (t > startcvv && t > (t_corr * counter) + 1) {   //Cvv calculation will be skip for all t=0 and t=1 (the same applies fort =  10,11,20,21, and so on ) 
-
-				if (k > 0 && k <= 10) {
-					cvv_ave[k] = 0;
+		
+		if ( k == t_corr) {
+			if (t > startcvv) {
+				for (x = 0; x < t_corr; x++) {
 					for (i = 0; i < N; i++) {
-						x = 0;
-						cvv_dt[i] = ((vx[k][i] * vx[k + x][i] + vy[k][i] * vx[k + x][i] + vz[k][i] * vx[k + x][i]) / N);
-						cvv_ave[k] += cvv_dt[i] ;
-						//cvv_ave[k] = cvv_ave[k] * (1 / (t - t_corr));
-						//cout << t << "," << cvv_dt[i] << "," << cvv_ave[k] << "," << cvv_accum << endl;
-						//cout << "cvv execution is fine" << endl;
+
+						cvv_dt[i] = (vx[0][i] * vx[x][i] + vy[0][i] * vy[x][i] + vz[0][i] * vz[x][i]);
+						cvv_ave[x] += cvv_dt[i] / N;
+						//cvv_ave[x] = (cvv_ave[x] * (1 / t));
+						cvv_accum[x] += cvv_ave[x];
+						//cout << "cvv_dt[i] " << cvv_dt[i] << "," << "cvv_ave[x]" << cvv_ave[x] << "," << "cvv_accum[x] " << cvv_accum[x] << endl;
 					}
-					x++;
-					cvv_accum[k] += cvv_ave[k];
-					//cout << t << "," << k << "," << cvv_ave[k] << "," << cvv_accum << endl;
-					//cout << "if k is fine " << endl;
-				}
-				//cout << t << "," << cvv_accum << endl;
+					//if (t % t_corr > 500) {
 
-
-			}
-			*/
-
-			if (k >= 10) {
-				
-				if (t >= startcvv + 20) {
-					for (k = 0; k < storage; k++) {
-						cvvfile << t << "," << cvv_accum[k] << endl;
-					}
-				}
-				
-				
-				//for (k = 0; k < storage; k++) {
-					//cvv_accum[k] = 0;
-					//for (j = 1; j < storage; j++) {
-						//cvv_accum[k] = cvv_accum[k + j];
+					cvvfile << t << "," << cvv_accum[x] << "," << cvv_accum[x] / (t - (double)t_corr) << "," << (cvv_accum[x] / (t - (double)t_corr)) / N << endl;
 					//}
 
-					
-				//}
-				counter++;
+					//cout << "counter " << counter << endl;
+				}
+
+
 			}
-			
-			
-			
-			
-			
-			//}
 		}
+		
+			if (k==t_corr)counter++;
+	
 
 		
 		
