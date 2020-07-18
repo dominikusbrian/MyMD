@@ -22,8 +22,8 @@ default_random_engine e(23238);
 
 const int N = 108;							// N is the number of particle within the system
 const int DIM = 3;							// DIM is dimension of the problem
-const int tmax_eq = 80000;						// maximum number of timestep or simulation duration
-const int tmax_prod = 100000;
+const int tmax_eq = 10000;						// maximum number of timestep or simulation duration
+const int tmax_prod = 3000;
 const double rho = 0.8;						// System's volume density
 double dt = 0.0025;							// Simulation timestep size
 double Init_Temp = 1;						// Temperature
@@ -33,6 +33,7 @@ const double rcut = (0.5 * edge);
 const int rdf_bin = 200;
 const double delta_r = rcut / rdf_bin;					// bin width for rdf analysis
 const int size_pair = (N * (N - 1)) / 2;	// array size for the total number of pairs 
+const int N_frame = 300;
 
 
 
@@ -88,14 +89,15 @@ void Force_Calc(double r[N][DIM], double F[N][DIM], double& E_pot);
 void Vel_Verlet(double r[N][DIM], double v[N][DIM], double F[N][DIM], double& E_pot, double& E_kin, double& Temp);
 void Vel_Verlet_first(double r[N][DIM], double v[N][DIM], double F[N][DIM], double& E_pot, double& E_kin, double& Temp);
 
-//Periodic Boundary Condition
-void forcePBC(double& rij);
 
 //radial distribution function  
 void rdf(double r[N][DIM], double g_r[rdf_bin], double g_ave[rdf_bin], int& divider);
 
 //Velocity scaling
 void Vel_scaling(double v[N][DIM], double& E_kin, double& Temp_ave);
+
+//Cvv
+void store_velocity(double v[N][DIM], double vx[N_frame][N], double vy[N_frame][N], double vz[N_frame][N], int& k);
 
 /*------------------------Main function begin here------------------------ */
 
@@ -115,9 +117,10 @@ int main() {
 	double Temp = Init_Temp;
 	double g_r[rdf_bin] = { 0 };
 	double g_ave[rdf_bin] = { 0 };	// Accumulated average of rdf for a given frame
-	const int N_frame = 300;
-	const int storage = 300;
-	double vx[storage][N] = { 0 }, vy[storage][N] = { 0 }, vz[storage][N] = { 0 };
+
+	double vx[N_frame][N] = { 0 };
+	double vy[N_frame][N] = { 0 };
+	double vz[N_frame][N] = { 0 };
 	double cvv_dt[N] = { 0 };
 	//double cvv_accum = 0;
 	double cvv_ave[N_frame] = { 0 };
@@ -127,7 +130,6 @@ int main() {
 	int j = 0;
 	int x = 0;
 	double Temp_ave = 0;
-	int Delta_t = 1;
 	int cvvcount = 1;
 	double rij_vec[DIM] = { 0 };
 
@@ -323,7 +325,7 @@ int main() {
 	//Write Energy value at each time step into properties.csv
 
 	otherfile.open("rdf.csv");
-	otherfile << "r" << "," << "r_plus_dr" << "," << "Count" << "," << "g_r" << "," << "gr_ave" << "," << divider << "," << "gr_accum" << endl;
+	otherfile << "r" << "," << "r_plus_dr" << "," << "gr_accum" << endl;
 
 	trajfile.open("traj_prod.csv");
 	trajfile << "t" << "N" << "," << "rx" << "," << "ry" << "," << "rz" << "," << "vx" << "," << "vy" << "," << "vz" << endl;
@@ -372,48 +374,46 @@ int main() {
 			divider++; // everytime we are about to call for RDF function , divider + 1
 
 			rdf(r, g_r, g_ave, divider);
-			
+
 		}
-
-
-
-
 
 
 
 		//cout << "About to begin Cvv" << endl;
 		//MY NEW Cvv
 
-
-		/*
-		//Velocity auto-correlation function (calculating for Cvv)
 		k = t - (N_frame * counter);								// index for storage labeling always 1-N_frame
-		//cout << "my k is = " << k << endl;
-		//cout << "my counter is " << counter << endl;
-		//cout << "my t_corr*counter is " << t_corr * counter << endl;
+		//cvvfile << "my k is = " << k << endl;
+		//cvvfile << "my counter is " << counter << endl;
+		//cvvfile << "my N_frame * counter is " << N_frame * counter << endl;
+		//store_velocity(v, vx, vy, vz,k);
 		for (i = 0; i < N; i++) {
 			//cout<< i << " My Velocities are: " << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
 			// read the value of v for all atoms
+			//vx[k][i] = v[i][0];
+			//vy[k][i] = v[i][1];
+			//vz[k][i] = v[i][2];
+			vx[k][i];
+			vy[k][i];
+			vz[k][i];
+			//cvvfile <<"i is "<<i<<","<< "v (x,y,z) = ," << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
+			//cvvfile << "i is " << i << "," << "vx , vy, vz = ," << vx[k][i] << "," << vy[k][i] << "," << vz[k][i] << endl;
 			vx[k][i] = v[i][0];
 			vy[k][i] = v[i][1];
 			vz[k][i] = v[i][2];
-			//cout << "v = " << v[i][0] << endl;
-		   // cout << "vx = " << vx[k][i] << endl;
-		   // cout << "vy = " << vy[k][i] << endl;
-		   // cout << "vz = " << vz[k][i] << endl;
-		}
-		if (k == N_frame) {
-			if (t > startcvv) {
+			//cvvfile << "i is " << i << "," << "vx , vy, vz = ," << vx[k][i] << "," << vy[k][i] << "," << vz[k][i] << endl;
+			if (k==N_frame-1) {
 				for (x = 0; x < N_frame; x++) {
-					//cvv_accum[0] = 0;
+					//cout << "x is = " << x << endl;
+
 					cvv_ave[x] = 0;
-					//cvv_dt[i] = { 0 };
+
 					for (i = 0; i < N; i++) {
 						// cout << "vx = " << vx[0][i] << endl;
 						//cout << "vy = " << vy[0][i] << endl;
 						//cout << "vz = " << vz[0][i] << endl;
 						cvv_dt[i] = (vx[0][i] * vx[x][i] + vy[0][i] * vy[x][i] + vz[0][i] * vz[x][i]);
-						//cout << "my cvv_dt_i = "<<cvv_dt[i] << endl;
+						///cout << "my cvv_dt_i = "<<cvv_dt[i] << endl;
 						cvv_ave[x] += cvv_dt[i] / N;
 						//cout << "my cvv_ave = " << cvv_ave[x] << endl;
 						//cvv_ave[x] = (cvv_ave[x] * (1 / t));
@@ -423,19 +423,14 @@ int main() {
 					}
 					cvv_accum[x] += cvv_ave[x];
 					//cout << ">>>>>>>>>>>>>>>>>> my cvv_accum[x] = " << cvv_accum[x] << endl;
-					cvvfile << t << "," << cvv_accum[x] << "," << cvv_zero[0] / N << "," << k << "," << cvv_accum[x] / cvvcount << endl;
-					cvvcount++;
+					cvvfile << t << "," << cvv_accum[x] << "," << k << "," << cvv_accum[x] / cvvcount << endl;
+					
 				}
+				cvvcount++;
+				counter++;
 			}
-			counter++;
+
 		}
-		//cout << "Finished Cvv" << endl;
-		//cout << "counter " << counter << endl;
-
-
-
-		*/
-
 
 
 
@@ -455,7 +450,7 @@ int main() {
 	cvvfile.close();
 	fullprop.close();
 
-	cout << "------------------EQUILIBRATION FINISHED ----------------------" << endl;
+	cout << "------------------PRODUCTION FINISHED ----------------------" << endl;
 
 
 
@@ -474,7 +469,6 @@ int main() {
 
 	return 0;
 }
-
 
 
 /*------------------------Main function end here------------------------ */
@@ -570,7 +564,6 @@ void Config_velocity(double v[N][DIM]) {
 }
 
 
-
 double Config_Temp(double v[N][DIM], double& Temp) {
 	int i;
 	double v_sq[N] = { 0 };
@@ -625,26 +618,7 @@ void Force_Calc(double r[N][DIM], double F[N][DIM], double& E_pot) {
 
 	// position PBC
 	for (i = 0; i < N; i++) {
-		//cout << "start position PBC" << endl;
-		//cout <<"current position " << "," << i << "," << r[i][0] << "," << r[i][1] << "," << r[i][2] << endl;
-
-		//while (r[i][0] > (0.5 * edge)) r[i][0] -= edge;
-		//while (r[i][1] > (0.5 * edge)) r[i][1] -= edge;
-		//while (r[i][2] > (0.5 * edge)) r[i][2] -= edge;
-		//while (r[i][0] < (-0.5 * edge)) r[i][0] += edge;
-		//while (r[i][1] < (-0.5 * edge)) r[i][1] += edge;
-		//while (r[i][2] < (-0.5 * edge)) r[i][2] += edge;
-
-
-
-
-		//cout <<"position after PBC " << "," << i << "," << r[i][0] << "," << r[i][1] << "," << r[i][2] << endl;
-
-	//cout << "finished position PBC" << endl;
-		//for (i = 0; i < N; i++) {
-			//cout <<"current position " << "," << i << "," << r[i][0] << "," << r[i][1] << "," << r[i][2] << endl;
-		//}
-
+		
 		for (i = 0; i < N - 1; i++) {
 
 			for (j = i + 1; j < N; j++) {
@@ -694,8 +668,6 @@ void Force_Calc(double r[N][DIM], double F[N][DIM], double& E_pot) {
 				//cout << "rij_vec x,y,z = " << rij_vec[0] << "," << rij_vec[1] << "," << rij_vec[2] << endl;
 				rij = sqrt(rij_vec[0] * rij_vec[0] + rij_vec[1] * rij_vec[1] + rij_vec[2] * rij_vec[2]);
 
-				//cout << "rij before forcepbc = " << rij << endl;
-				//forcePBC(rij);
 				//cout << "rij after forcepbc = " << rij << endl;
 				//cout << "finish force PBC 2 " << endl;
 				if (rij < rcut) {
@@ -926,20 +898,6 @@ void Vel_scaling(double v[N][DIM], double& E_kin, double& Temp_ave) {
 	}
 }
 
-
-// Periodic Boundary Condition for force
-void forcePBC(double& rij) {
-	if (rij > (-0.5) && rij < 0) {
-		rij = rij - 0.5;
-	}
-
-	if (rij < (0.5) && rij > 0) {
-		rij = rij + 0.5;
-	}
-
-
-}
-
 void rdf(double r[N][DIM], double g_r[rdf_bin], double g_ave[rdf_bin], int& divider) {
 	int n, i, j;
 	double rij_vec[DIM] = { 0 };
@@ -999,11 +957,29 @@ void rdf(double r[N][DIM], double g_r[rdf_bin], double g_ave[rdf_bin], int& divi
 		g_ave[n] += g_r[n];  /// divider;
 
 		if (divider == (tmax_prod - startrdf) / 10) {
-			otherfile << (n * delta_r / sigma) << "," << ((double)n + 1) * delta_r << "," << hist[n] << "," << g_r[n] << "," << g_ave[n] << "," << divider << "," << (g_ave[n] / divider) << endl;
+			otherfile << (n * delta_r / sigma) << "," << ((double)n + 1) * delta_r << "," << (g_ave[n] / divider) << endl;
 		}
 		//cout << "all count for the pairs in this snapshot is done " << endl;
 		//cout << "the n is = " << n << endl;;
 	}
+
+}
+
+void store_velocity(double v[N][DIM], double vx[N_frame][N], double vy[N_frame][N], double vz[N_frame][N], int& k) {
+
+	int i;
+
+	for (i = 0; i < N; i++) {
+		//cout<< i << " My Velocities are: " << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
+		// read the value of v for all atoms
+		vx[k][i] = v[i][0];
+		vy[k][i] = v[i][1];
+		vz[k][i] = v[i][2];
+		cvvfile << "v (x,y,z) = " << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
+		cvvfile << "vx , vy, vz = " << vx[k][i] << "," << vy[k][i] << "," << vz[k][i] << endl;
+
+	}
+
 
 }
 
