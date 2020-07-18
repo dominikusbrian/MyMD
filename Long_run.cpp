@@ -1,4 +1,5 @@
 
+
 /*	Author: Dominikus Brian
 	"Lennard-Jones Particle Cluster MD simulation"
 	2020/July 10/2020
@@ -21,8 +22,8 @@ default_random_engine e(23238);
 
 const int N = 108;							// N is the number of particle within the system
 const int DIM = 3;							// DIM is dimension of the problem
-const int tmax_eq = 75000;						// maximum number of timestep or simulation duration
-const int tmax_prod = 20000;
+const int tmax_eq = 80000;						// maximum number of timestep or simulation duration
+const int tmax_prod = 100000;
 const double rho = 0.8;						// System's volume density
 double dt = 0.0025;							// Simulation timestep size
 double Init_Temp = 1;						// Temperature
@@ -30,7 +31,7 @@ const double Volume = N / rho;
 double edge = cbrt(Volume);					// Box edge size
 const double rcut = (0.5 * edge);
 const int rdf_bin = 200;
-const double delta_r = rcut/rdf_bin;					// bin width for rdf analysis
+const double delta_r = rcut / rdf_bin;					// bin width for rdf analysis
 const int size_pair = (N * (N - 1)) / 2;	// array size for the total number of pairs 
 
 
@@ -365,74 +366,19 @@ int main() {
 		}
 
 		//cout << "Just recorded our trajectories @ Prod" << endl;
-		
+
 		//MY NEW RDF
-		if (t > startrdf && t % 10 == 0) {
+		if (t >= startrdf && t % 10 == 0) {
 			divider++; // everytime we are about to call for RDF function , divider + 1
 
-			for (n = 0; n < rdf_bin; n++) {
-				hist_count = 0;
-				//g_ave[n] = 0;
-				for (i = 0; i < N - 1; i++) {
-					for (j = i + 1; j < N; j++) {
-
-						// finding pair distance
-						rij_vec[0] = r[j][0] - r[i][0];
-						rij_vec[1] = r[j][1] - r[i][1];
-						rij_vec[2] = r[j][2] - r[i][2];
-
-
-						//PBC for pair distance
-						while (rij_vec[0] < (-0.5 * edge)) {
-							rij_vec[0] = rij_vec[0] + edge;
-						}
-						while (rij_vec[1] < (-0.5 * edge)) {
-							rij_vec[1] = rij_vec[1] + edge;
-						}
-						while (rij_vec[2] < (-0.5 * edge)) {
-							rij_vec[2] = rij_vec[2] + edge;
-						}
-
-
-						while (rij_vec[0] > (0.5 * edge)) {
-							rij_vec[0] = rij_vec[0] - edge;
-						}
-						while (rij_vec[1] > (0.5 * edge)) {
-							rij_vec[1] = rij_vec[1] - edge;
-						}
-						while (rij_vec[2] > (0.5 * edge)) {
-							rij_vec[2] = rij_vec[2] - edge;
-						}
-
-						//cout << "Finish force_PBC @ Prod RDF" << endl;
-						//Closest neighbour of particle i
-						rij = sqrt(rij_vec[0] * rij_vec[0] + rij_vec[1] * rij_vec[1] + rij_vec[2] * rij_vec[2]);
-						//cout << "rij is = " << rij << endl;
-
-						//cout << "rij inside my n loop is = " << rij << endl;
-						if (rij >= (n * delta_r) && rij < ((double)n + 1) * delta_r) {
-
-							hist_count++;
-						}
-					}
-				}
-				hist[n] = hist_count;
-				g_r[n] = ((hist[n] * Volume * 2) / ((double)N * 4 * PI * (((double)n + 1) * delta_r) * (((double)n + 1) * delta_r) * delta_r * N));
-				g_ave[n] += g_r[n];  /// divider;
-
-				//if (divider == (tmax_prod - startrdf) / 10) {
-				otherfile << (n * delta_r / sigma) << "," << ((double)n + 1) * delta_r << "," << hist[n] << "," << g_r[n] << "," << g_ave[n] << "," << divider << "," << (g_ave[n] / divider) << endl;
-				//}
-				//cout << "all count for the pairs in this snapshot is done " << endl;
-				//cout << "the n is = " << n << endl;;
-			}
-			//cout << "we looped over all n ! " << endl;
+			rdf(r, g_r, g_ave, divider);
+			
 		}
 
 
 
 
-		
+
 
 
 		//cout << "About to begin Cvv" << endl;
@@ -441,17 +387,12 @@ int main() {
 
 		/*
 		//Velocity auto-correlation function (calculating for Cvv)
-
-
 		k = t - (N_frame * counter);								// index for storage labeling always 1-N_frame
-
 		//cout << "my k is = " << k << endl;
 		//cout << "my counter is " << counter << endl;
 		//cout << "my t_corr*counter is " << t_corr * counter << endl;
 		for (i = 0; i < N; i++) {
-
 			//cout<< i << " My Velocities are: " << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
-
 			// read the value of v for all atoms
 			vx[k][i] = v[i][0];
 			vy[k][i] = v[i][1];
@@ -461,12 +402,8 @@ int main() {
 		   // cout << "vy = " << vy[k][i] << endl;
 		   // cout << "vz = " << vz[k][i] << endl;
 		}
-
-
 		if (k == N_frame) {
-
 			if (t > startcvv) {
-
 				for (x = 0; x < N_frame; x++) {
 					//cvv_accum[0] = 0;
 					cvv_ave[x] = 0;
@@ -485,28 +422,20 @@ int main() {
 						//cout << "cvv_dt[i] " << cvv_dt[i] << "," << "cvv_ave[x]" << cvv_ave[x] << "," << "cvv_accum[x] " << cvv_accum[x] << endl;
 					}
 					cvv_accum[x] += cvv_ave[x];
-
 					//cout << ">>>>>>>>>>>>>>>>>> my cvv_accum[x] = " << cvv_accum[x] << endl;
 					cvvfile << t << "," << cvv_accum[x] << "," << cvv_zero[0] / N << "," << k << "," << cvv_accum[x] / cvvcount << endl;
-
 					cvvcount++;
-
 				}
-
-
 			}
 			counter++;
 		}
 		//cout << "Finished Cvv" << endl;
-
-
 		//cout << "counter " << counter << endl;
 
-		
-		
-		
+
+
 		*/
-		
+
 
 
 
@@ -584,15 +513,15 @@ void Config_atoms_lattice(double r[N][DIM]) {
 		//r[i][0] = ix *  0.2*edge - (((double)rand() * (0.5 - 0.2)) / (double)RAND_MAX);
 		//r[i][1] = iy * 0.2*edge - (((double)rand() * (0.5 - 0.2)) / (double)RAND_MAX);
 		//r[i][2] = iz * 0.2* edge - (((double)rand() * (0.5 - 0.2)) / (double)RAND_MAX);
-		r[i][0] = ix * 0.2*edge;
-		r[i][1] = iy * 0.2* edge;
+		r[i][0] = ix * 0.2 * edge;
+		r[i][1] = iy * 0.2 * edge;
 		r[i][2] = iz * 0.2 * edge;
 
 		ix++;
-		if (ix >= 0.8*edge) {
+		if (ix >= 0.8 * edge) {
 			ix = 0;
 			iy++;
-			if (iy >= 0.8*edge) {
+			if (iy >= 0.8 * edge) {
 				iy = 0;
 				iz++;
 			}
@@ -698,7 +627,7 @@ void Force_Calc(double r[N][DIM], double F[N][DIM], double& E_pot) {
 	for (i = 0; i < N; i++) {
 		//cout << "start position PBC" << endl;
 		//cout <<"current position " << "," << i << "," << r[i][0] << "," << r[i][1] << "," << r[i][2] << endl;
-		
+
 		//while (r[i][0] > (0.5 * edge)) r[i][0] -= edge;
 		//while (r[i][1] > (0.5 * edge)) r[i][1] -= edge;
 		//while (r[i][2] > (0.5 * edge)) r[i][2] -= edge;
@@ -707,114 +636,114 @@ void Force_Calc(double r[N][DIM], double F[N][DIM], double& E_pot) {
 		//while (r[i][2] < (-0.5 * edge)) r[i][2] += edge;
 
 
-		
+
 
 		//cout <<"position after PBC " << "," << i << "," << r[i][0] << "," << r[i][1] << "," << r[i][2] << endl;
-			
+
 	//cout << "finished position PBC" << endl;
 		//for (i = 0; i < N; i++) {
 			//cout <<"current position " << "," << i << "," << r[i][0] << "," << r[i][1] << "," << r[i][2] << endl;
 		//}
-	
-			for (i = 0; i < N - 1; i++) {
 
-				for (j = i + 1; j < N; j++) {
+		for (i = 0; i < N - 1; i++) {
 
-					//for dimension, where 0 = x,  1 = y = 1, 2 = z
-					rij_vec[0] = (r[j][0] - r[i][0]);
-					rij_vec[1] = (r[j][1] - r[i][1]);
-					rij_vec[2] = (r[j][2] - r[i][2]);
-					//cout << "rij_Vec[k] before pbc " << rij_vec[0]<<"," <<rij_vec[1]<<","<<rij_vec[2]<< endl;
+			for (j = i + 1; j < N; j++) {
 
-
-					//while (rij_vec[0] <= 0.5 * edge && rij_vec[0] > -0.5 * edge) {
-					//	rij_vec[0] = rij_vec[0];
-					//}
-					//while (rij_vec[1] <= 0.5 * edge && rij_vec[1] > -0.5 * edge) {
-					//	rij_vec[1] = rij_vec[1];
-					//}
-					//while (rij_vec[2] <= 0.5 * edge && rij_vec[2] > -0.5 * edge) {
-					//	rij_vec[2] = rij_vec[2];
-					//}
-					
-					//cout << "start force PBC" << endl;
-					while (rij_vec[0] < (-0.5 * edge)) {
-						rij_vec[0] = rij_vec[0] + edge;
-					}
-					while (rij_vec[1] < (-0.5 * edge)) {
-						rij_vec[1] = rij_vec[1] + edge;
-					}
-					while (rij_vec[2] < (-0.5 * edge)) {
-						rij_vec[2] = rij_vec[2] + edge;
-					}
+				//for dimension, where 0 = x,  1 = y = 1, 2 = z
+				rij_vec[0] = (r[j][0] - r[i][0]);
+				rij_vec[1] = (r[j][1] - r[i][1]);
+				rij_vec[2] = (r[j][2] - r[i][2]);
+				//cout << "rij_Vec[k] before pbc " << rij_vec[0]<<"," <<rij_vec[1]<<","<<rij_vec[2]<< endl;
 
 
-					while (rij_vec[0] > (0.5 * edge)) {
-						rij_vec[0] = rij_vec[0] - edge;
-					}
-					while (rij_vec[1] > (0.5 * edge)) {
-						rij_vec[1] = rij_vec[1] - edge;
-					}
-					while (rij_vec[2] > (0.5 * edge)) {
-						rij_vec[2] = rij_vec[2] - edge;
-					}
+				//while (rij_vec[0] <= 0.5 * edge && rij_vec[0] > -0.5 * edge) {
+				//	rij_vec[0] = rij_vec[0];
+				//}
+				//while (rij_vec[1] <= 0.5 * edge && rij_vec[1] > -0.5 * edge) {
+				//	rij_vec[1] = rij_vec[1];
+				//}
+				//while (rij_vec[2] <= 0.5 * edge && rij_vec[2] > -0.5 * edge) {
+				//	rij_vec[2] = rij_vec[2];
+				//}
 
-					//cout << "finish force PBC 1 " << endl;
-
-
-					//cout << "rij_vec x,y,z = " << rij_vec[0] << "," << rij_vec[1] << "," << rij_vec[2] << endl;
-					rij = sqrt(rij_vec[0] * rij_vec[0] + rij_vec[1] * rij_vec[1] + rij_vec[2] * rij_vec[2]);
-
-					//cout << "rij before forcepbc = " << rij << endl;
-					//forcePBC(rij);
-					//cout << "rij after forcepbc = " << rij << endl;
-					//cout << "finish force PBC 2 " << endl;
-					if (rij < rcut) {
-						rij2 = sigma2 / (rij * rij);					// sigma^2 / rij^2
-						rij6 = rij2 * rij2 * rij2;						// sigma^6 / rij^6
-						rij12 = rij6 * rij6;							// sigma^12 / rij^12
-
-						U_LJ = 4 * epsilon * (rij12 - rij6);			// Lennard Jones Potential
-						//cout << "U_LJ is " << U_LJ << endl;
-
-						potential[i] = U_LJ;
-
-						E_pot += potential[i];
-
-						//cout <<"the i and j is:"<<i<<","<<j << potential[i]<<"total e_pot "<<E_pot<< endl;
-						//E_pot += potential [i][j];
-						//cout << "my E_pot after summation is = " << E_pot << endl;
-
-
-						//cout << "my E_pot = " << E_pot << endl;
-						//computing for spatial derivative of potential energy dU/dr 
-						dU_LJ = -48 * epsilon / rij * (rij12 - 0.5 * rij6);
-						//cout << "dU_LJ is " << dU_LJ << endl;
-
-						//Force exerted on particle #N 
-						//cout << "F before force calc is " << F[i][k] << endl;
-
-						//for (k = 0; k < DIM; k++) {
-							//F[i][k] += dU_LJ * rij_vec[k];
-							//F[j][k] -= dU_LJ * rij_vec[k];
-
-						//}
-
-						F[i][0] += dU_LJ * rij_vec[0];
-						F[i][1] += dU_LJ * rij_vec[1];
-						F[i][2] += dU_LJ * rij_vec[2];
-
-						F[j][0] -= dU_LJ * rij_vec[0];
-						F[j][1] -= dU_LJ * rij_vec[1];
-						F[j][2] -= dU_LJ * rij_vec[2];
-						//cout << "F after force calc is " << F[i][0]<<","<< F[i][1] << "," << F[i][2] << "," << endl;
-					}
-
-
-					//cout << "i "<<i<<" j "<<j<<" my E_pot after summation is = " << E_pot << endl;
+				//cout << "start force PBC" << endl;
+				while (rij_vec[0] < (-0.5 * edge)) {
+					rij_vec[0] = rij_vec[0] + edge;
+				}
+				while (rij_vec[1] < (-0.5 * edge)) {
+					rij_vec[1] = rij_vec[1] + edge;
+				}
+				while (rij_vec[2] < (-0.5 * edge)) {
+					rij_vec[2] = rij_vec[2] + edge;
 				}
 
+
+				while (rij_vec[0] > (0.5 * edge)) {
+					rij_vec[0] = rij_vec[0] - edge;
+				}
+				while (rij_vec[1] > (0.5 * edge)) {
+					rij_vec[1] = rij_vec[1] - edge;
+				}
+				while (rij_vec[2] > (0.5 * edge)) {
+					rij_vec[2] = rij_vec[2] - edge;
+				}
+
+				//cout << "finish force PBC 1 " << endl;
+
+
+				//cout << "rij_vec x,y,z = " << rij_vec[0] << "," << rij_vec[1] << "," << rij_vec[2] << endl;
+				rij = sqrt(rij_vec[0] * rij_vec[0] + rij_vec[1] * rij_vec[1] + rij_vec[2] * rij_vec[2]);
+
+				//cout << "rij before forcepbc = " << rij << endl;
+				//forcePBC(rij);
+				//cout << "rij after forcepbc = " << rij << endl;
+				//cout << "finish force PBC 2 " << endl;
+				if (rij < rcut) {
+					rij2 = sigma2 / (rij * rij);					// sigma^2 / rij^2
+					rij6 = rij2 * rij2 * rij2;						// sigma^6 / rij^6
+					rij12 = rij6 * rij6;							// sigma^12 / rij^12
+
+					U_LJ = 4 * epsilon * (rij12 - rij6);			// Lennard Jones Potential
+					//cout << "U_LJ is " << U_LJ << endl;
+
+					potential[i] = U_LJ;
+
+					E_pot += potential[i];
+
+					//cout <<"the i and j is:"<<i<<","<<j << potential[i]<<"total e_pot "<<E_pot<< endl;
+					//E_pot += potential [i][j];
+					//cout << "my E_pot after summation is = " << E_pot << endl;
+
+
+					//cout << "my E_pot = " << E_pot << endl;
+					//computing for spatial derivative of potential energy dU/dr 
+					dU_LJ = -48 * epsilon / rij * (rij12 - 0.5 * rij6);
+					//cout << "dU_LJ is " << dU_LJ << endl;
+
+					//Force exerted on particle #N 
+					//cout << "F before force calc is " << F[i][k] << endl;
+
+					//for (k = 0; k < DIM; k++) {
+						//F[i][k] += dU_LJ * rij_vec[k];
+						//F[j][k] -= dU_LJ * rij_vec[k];
+
+					//}
+
+					F[i][0] += dU_LJ * rij_vec[0];
+					F[i][1] += dU_LJ * rij_vec[1];
+					F[i][2] += dU_LJ * rij_vec[2];
+
+					F[j][0] -= dU_LJ * rij_vec[0];
+					F[j][1] -= dU_LJ * rij_vec[1];
+					F[j][2] -= dU_LJ * rij_vec[2];
+					//cout << "F after force calc is " << F[i][0]<<","<< F[i][1] << "," << F[i][2] << "," << endl;
+				}
+
+
+				//cout << "i "<<i<<" j "<<j<<" my E_pot after summation is = " << E_pot << endl;
 			}
+
+		}
 	}
 
 }
@@ -1000,14 +929,14 @@ void Vel_scaling(double v[N][DIM], double& E_kin, double& Temp_ave) {
 
 // Periodic Boundary Condition for force
 void forcePBC(double& rij) {
-	if (rij > (-0.5) && rij<0)  {
+	if (rij > (-0.5) && rij < 0) {
 		rij = rij - 0.5;
 	}
 
 	if (rij < (0.5) && rij > 0) {
 		rij = rij + 0.5;
 	}
-	
+
 
 }
 
@@ -1015,24 +944,23 @@ void rdf(double r[N][DIM], double g_r[rdf_bin], double g_ave[rdf_bin], int& divi
 	int n, i, j;
 	double rij_vec[DIM] = { 0 };
 	double rij = 0;
-	const double rcut = (0.5 * edge);
-	double count = 0;
 	double hist[rdf_bin] = { 0 };
+	int hist_count = 0;
 
 
-	if (divider == (tmax_prod - startrdf) / 10) {
-		otherfile  << 0 << "," << delta_r << "," << 0 << "," << 0 << "," << 0 << "," << divider << "," << 0 << endl;
-	}
-	for (n = 2; n < rdf_bin; n++) {
-		count = 0;
-
+	for (n = 0; n < rdf_bin; n++) {
+		hist_count = 0;
+		//g_ave[n] = 0;
 		for (i = 0; i < N - 1; i++) {
 			for (j = i + 1; j < N; j++) {
 
+				// finding pair distance
 				rij_vec[0] = r[j][0] - r[i][0];
 				rij_vec[1] = r[j][1] - r[i][1];
 				rij_vec[2] = r[j][2] - r[i][2];
 
+
+				//PBC for pair distance
 				while (rij_vec[0] < (-0.5 * edge)) {
 					rij_vec[0] = rij_vec[0] + edge;
 				}
@@ -1054,33 +982,28 @@ void rdf(double r[N][DIM], double g_r[rdf_bin], double g_ave[rdf_bin], int& divi
 					rij_vec[2] = rij_vec[2] - edge;
 				}
 
+				//cout << "Finish force_PBC @ Prod RDF" << endl;
+				//Closest neighbour of particle i
 				rij = sqrt(rij_vec[0] * rij_vec[0] + rij_vec[1] * rij_vec[1] + rij_vec[2] * rij_vec[2]);
-				if (rij < rcut) {
+				//cout << "rij is = " << rij << endl;
 
-					if (rij > ((n - 1.0) * delta_r) && rij < (n * delta_r)) {
-						count++;
-					}
-					else {
-						continue;
+				//cout << "rij inside my n loop is = " << rij << endl;
+				if (rij >= (n * delta_r) && rij < ((double)n + 1) * delta_r) {
 
-					}
-
+					hist_count++;
 				}
 			}
 		}
-		hist[n] += count;
+		hist[n] = hist_count;
+		g_r[n] = ((hist[n] * Volume * 2) / ((double)N * 4 * PI * (((double)n + 1) * delta_r) * (((double)n + 1) * delta_r) * delta_r * N));
+		g_ave[n] += g_r[n];  /// divider;
 
-		g_r[n] = (hist[n] * (Volume)) / (N * 4.0 * PI * (((n - 1.0) * delta_r) * ((n - 1.0) * delta_r)) * delta_r * N);
-		g_ave[n] += g_r[n];
-		//g_ave[n] += (g_ave[n] / divider);
 		if (divider == (tmax_prod - startrdf) / 10) {
-		//if (divider > 3000) {
-			otherfile << ((n - 1.0) * delta_r) / sigma << "," << n * delta_r << "," << count << "," << g_r[n] << "," << g_ave[n] << "," << divider << "," << g_ave[n] / divider << endl;
+			otherfile << (n * delta_r / sigma) << "," << ((double)n + 1) * delta_r << "," << hist[n] << "," << g_r[n] << "," << g_ave[n] << "," << divider << "," << (g_ave[n] / divider) << endl;
 		}
-		//}
-
-		//otherfile << "," << ((n - 1.0) * delta_r) / sigma << "," << n * delta_r << "," << count << "," << g_r[n] << endl;
+		//cout << "all count for the pairs in this snapshot is done " << endl;
+		//cout << "the n is = " << n << endl;;
 	}
-}
 
+}
 
