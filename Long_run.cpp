@@ -22,8 +22,8 @@ default_random_engine e(23238);
 
 const int N = 108;							// N is the number of particle within the system
 const int DIM = 3;							// DIM is dimension of the problem
-const int tmax_eq = 10000;						// maximum number of timestep or simulation duration
-const int tmax_prod = 3000;
+const int tmax_eq = 80000;						// maximum number of timestep or simulation duration
+const int tmax_prod = 20000;
 const double rho = 0.8;						// System's volume density
 double dt = 0.0025;							// Simulation timestep size
 double Init_Temp = 1;						// Temperature
@@ -33,7 +33,7 @@ const double rcut = (0.5 * edge);
 const int rdf_bin = 200;
 const double delta_r = rcut / rdf_bin;					// bin width for rdf analysis
 const int size_pair = (N * (N - 1)) / 2;	// array size for the total number of pairs 
-const int N_frame = 300;
+const int N_frame = 1000;
 
 
 
@@ -101,6 +101,10 @@ void store_velocity(double v[N][DIM], double vx[N_frame][N], double vy[N_frame][
 
 /*------------------------Main function begin here------------------------ */
 
+
+static double vx[2000][N];
+static double vy[2000][N];
+static double vz[2000][N];
 int main() {
 	clock_t tstart = clock();
 	int i, t;
@@ -118,9 +122,7 @@ int main() {
 	double g_r[rdf_bin] = { 0 };
 	double g_ave[rdf_bin] = { 0 };	// Accumulated average of rdf for a given frame
 
-	double vx[N_frame][N] = { 0 };
-	double vy[N_frame][N] = { 0 };
-	double vz[N_frame][N] = { 0 };
+	
 	double cvv_dt[N] = { 0 };
 	//double cvv_accum = 0;
 	double cvv_ave[N_frame] = { 0 };
@@ -338,6 +340,13 @@ int main() {
 
 	for (t = 0; t < tmax_prod; t++) {
 
+		if (t == tmax_prod * 0)cout << "The progress is : " << endl;
+		if (t == tmax_prod * 0.10)cout << " | 10%";
+		if (t == tmax_prod * 0.25)cout << " | 25%";
+		if (t == tmax_prod * 0.50)cout << " | 50%";
+		if (t == tmax_prod * 0.75)cout << " | 75%";
+		if (t == tmax_prod * 0.90)cout << " | 90%";
+		if (t == tmax_prod - 1)cout << " | 100% |" << endl;
 
 		Vel_Verlet(r, v, F, E_pot, E_kin, Temp);
 		E_tot = E_kin + E_pot;
@@ -423,7 +432,9 @@ int main() {
 					}
 					cvv_accum[x] += cvv_ave[x];
 					//cout << ">>>>>>>>>>>>>>>>>> my cvv_accum[x] = " << cvv_accum[x] << endl;
-					cvvfile << t << "," << cvv_accum[x] << "," << k << "," << cvv_accum[x] / cvvcount << endl;
+					if (t >= tmax_prod-N_frame) {
+						cvvfile << t << "," << cvv_accum[x] << "," << k << "," << cvv_accum[x] / cvvcount << endl;
+					}
 					
 				}
 				cvvcount++;
@@ -435,13 +446,7 @@ int main() {
 
 
 
-		if (t == tmax_prod * 0)cout << "The progress is : " << endl;
-		if (t == tmax_prod * 0.10)cout << " | 10%";
-		if (t == tmax_prod * 0.25)cout << " | 25%";
-		if (t == tmax_prod * 0.50)cout << " | 50%";
-		if (t == tmax_prod * 0.75)cout << " | 75%";
-		if (t == tmax_prod * 0.90)cout << " | 90%";
-		if (t == tmax_prod - 1)cout << " | 100% |" << endl;
+		
 
 
 	}
