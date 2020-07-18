@@ -28,9 +28,10 @@ double dt = 0.0025;							// Simulation timestep size
 double Init_Temp = 1;						// Temperature
 const double Volume = N / rho;
 double edge = cbrt(Volume);					// Box edge size
-const double delta_r = 0.0125;					// bin width for rdf analysis
+const double rcut = (0.5 * edge);
+const int rdf_bin = 200;
+const double delta_r = rcut/rdf_bin;					// bin width for rdf analysis
 const int size_pair = (N * (N - 1)) / 2;	// array size for the total number of pairs 
-const int size_bin = 200;
 
 
 
@@ -90,7 +91,7 @@ void Vel_Verlet_first(double r[N][DIM], double v[N][DIM], double F[N][DIM], doub
 void forcePBC(double& rij);
 
 //radial distribution function  
-void rdf(double r[N][DIM], double g_r[size_bin], double g_ave[size_bin], int& divider);
+void rdf(double r[N][DIM], double g_r[rdf_bin], double g_ave[rdf_bin], int& divider);
 
 //Velocity scaling
 void Vel_scaling(double v[N][DIM], double& E_kin, double& Temp_ave);
@@ -111,8 +112,8 @@ int main() {
 
 	double rij = 0;					// Pair distance
 	double Temp = Init_Temp;
-	double g_r[size_bin] = { 0 };
-	double g_ave[size_bin] = { 0 };	// Accumulated average of rdf for a given frame
+	double g_r[rdf_bin] = { 0 };
+	double g_ave[rdf_bin] = { 0 };	// Accumulated average of rdf for a given frame
 	const int N_frame = 300;
 	const int storage = 300;
 	double vx[storage][N] = { 0 }, vy[storage][N] = { 0 }, vz[storage][N] = { 0 };
@@ -127,8 +128,11 @@ int main() {
 	double Temp_ave = 0;
 	int Delta_t = 1;
 	int cvvcount = 1;
+	double rij_vec[DIM] = { 0 };
 
-
+	double hist_count = 0;
+	double hist[rdf_bin] = { 0 };
+	int n = 0;
 
 
 
@@ -226,9 +230,6 @@ int main() {
 	cout << "------------------BEGIN EQUILIBRATION ----------------------" << endl;
 	//Write Energy value at each time step into properties.csv
 
-	trajfile.open("traj.csv");
-	trajfile << "t" << "N" << "," << "rx" << "," << "ry" << "," << "rz" << "," << "vx" << "," << "vy" << "," << "vz" << endl;
-
 
 	fullprop.open("fullprop_eq.txt");
 	fullprop << "t" << "," << "Potential" << "," << "Kinetic" << "," << "Total" << "," << "Temperature" << endl;
@@ -287,12 +288,6 @@ int main() {
 
 		}
 
-		// record trajectory every write_traj steps
-		if (t > start_write_traj && t % write_traj == 0) {
-			for (i = 0; i < N; i++) {
-				trajfile << t + 1 << "," << i << "," << r[i][0] << "," << r[i][1] << "," << r[i][2] << "," << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
-			}
-		}
 
 
 		if (t == tmax_eq * 0)cout << "The progress is : " << endl;
@@ -306,7 +301,6 @@ int main() {
 
 	}
 
-	trajfile.close();
 	fullprop.close();
 
 	cout << "------------------EQUILIBRATION FINISHED ----------------------" << endl;
@@ -330,7 +324,7 @@ int main() {
 	otherfile.open("rdf.csv");
 	otherfile << "r" << "," << "r_plus_dr" << "," << "Count" << "," << "g_r" << "," << "gr_ave" << "," << divider << "," << "gr_accum" << endl;
 
-	trajfile.open("traj.csv");
+	trajfile.open("traj_prod.csv");
 	trajfile << "t" << "N" << "," << "rx" << "," << "ry" << "," << "rz" << "," << "vx" << "," << "vy" << "," << "vz" << endl;
 
 	cvvfile.open("cvv.csv");
@@ -350,13 +344,7 @@ int main() {
 		fullprop << t + 1 << "," << E_pot << "," << E_kin << "," << E_tot << "," << Temp << endl;
 
 
-		// Radial distribution function (RDF) analysis
-		if (t >= startrdf && t % 10 == 0) {
-			divider++;
-			rdf(r, g_r, g_ave, divider);
-		}
-
-
+		//cout << "Start Pos_PBC @ Prod" << endl;
 		//Positional PBC
 		for (i = 0; i < N; i++) {
 			while (r[i][0] > (0.5 * edge)) r[i][0] -= edge;
@@ -367,6 +355,7 @@ int main() {
 			while (r[i][2] < (-0.5 * edge)) r[i][2] += edge;
 
 		}
+		//cout << "Finish Pos_PBC @ Prod" << endl;
 
 		// record trajectory every write_traj steps
 		if (t > start_write_traj && t % write_traj == 0) {
@@ -375,8 +364,82 @@ int main() {
 			}
 		}
 
+		//cout << "Just recorded our trajectories @ Prod" << endl;
+		
+		//MY NEW RDF
+		if (t > startrdf && t % 10 == 0) {
+			divider++; // everytime we are about to call for RDF function , divider + 1
+
+			for (n = 0; n < rdf_bin; n++) {
+				hist_count = 0;
+				//g_ave[n] = 0;
+				for (i = 0; i < N - 1; i++) {
+					for (j = i + 1; j < N; j++) {
+
+						// finding pair distance
+						rij_vec[0] = r[j][0] - r[i][0];
+						rij_vec[1] = r[j][1] - r[i][1];
+						rij_vec[2] = r[j][2] - r[i][2];
 
 
+						//PBC for pair distance
+						while (rij_vec[0] < (-0.5 * edge)) {
+							rij_vec[0] = rij_vec[0] + edge;
+						}
+						while (rij_vec[1] < (-0.5 * edge)) {
+							rij_vec[1] = rij_vec[1] + edge;
+						}
+						while (rij_vec[2] < (-0.5 * edge)) {
+							rij_vec[2] = rij_vec[2] + edge;
+						}
+
+
+						while (rij_vec[0] > (0.5 * edge)) {
+							rij_vec[0] = rij_vec[0] - edge;
+						}
+						while (rij_vec[1] > (0.5 * edge)) {
+							rij_vec[1] = rij_vec[1] - edge;
+						}
+						while (rij_vec[2] > (0.5 * edge)) {
+							rij_vec[2] = rij_vec[2] - edge;
+						}
+
+						//cout << "Finish force_PBC @ Prod RDF" << endl;
+						//Closest neighbour of particle i
+						rij = sqrt(rij_vec[0] * rij_vec[0] + rij_vec[1] * rij_vec[1] + rij_vec[2] * rij_vec[2]);
+						//cout << "rij is = " << rij << endl;
+
+						//cout << "rij inside my n loop is = " << rij << endl;
+						if (rij >= (n * delta_r) && rij < ((double)n + 1) * delta_r) {
+
+							hist_count++;
+						}
+					}
+				}
+				hist[n] = hist_count;
+				g_r[n] = ((hist[n] * Volume * 2) / ((double)N * 4 * PI * (((double)n + 1) * delta_r) * (((double)n + 1) * delta_r) * delta_r * N));
+				g_ave[n] += g_r[n];  /// divider;
+
+				//if (divider == (tmax_prod - startrdf) / 10) {
+				otherfile << (n * delta_r / sigma) << "," << ((double)n + 1) * delta_r << "," << hist[n] << "," << g_r[n] << "," << g_ave[n] << "," << divider << "," << (g_ave[n] / divider) << endl;
+				//}
+				//cout << "all count for the pairs in this snapshot is done " << endl;
+				//cout << "the n is = " << n << endl;;
+			}
+			//cout << "we looped over all n ! " << endl;
+		}
+
+
+
+
+		
+
+
+		//cout << "About to begin Cvv" << endl;
+		//MY NEW Cvv
+
+
+		/*
 		//Velocity auto-correlation function (calculating for Cvv)
 
 
@@ -389,7 +452,7 @@ int main() {
 
 			//cout<< i << " My Velocities are: " << v[i][0] << "," << v[i][1] << "," << v[i][2] << endl;
 
-	// read the value of v for all atoms
+			// read the value of v for all atoms
 			vx[k][i] = v[i][0];
 			vy[k][i] = v[i][1];
 			vz[k][i] = v[i][2];
@@ -434,11 +497,16 @@ int main() {
 			}
 			counter++;
 		}
-
+		//cout << "Finished Cvv" << endl;
 
 
 		//cout << "counter " << counter << endl;
 
+		
+		
+		
+		*/
+		
 
 
 
@@ -453,8 +521,6 @@ int main() {
 
 
 	}
-
-	myfile.close();
 	otherfile.close();
 	trajfile.close();
 	cvvfile.close();
@@ -945,19 +1011,19 @@ void forcePBC(double& rij) {
 
 }
 
-void rdf(double r[N][DIM], double g_r[size_bin], double g_ave[size_bin], int& divider) {
+void rdf(double r[N][DIM], double g_r[rdf_bin], double g_ave[rdf_bin], int& divider) {
 	int n, i, j;
 	double rij_vec[DIM] = { 0 };
 	double rij = 0;
 	const double rcut = (0.5 * edge);
 	double count = 0;
-	double hist[size_bin] = { 0 };
+	double hist[rdf_bin] = { 0 };
 
 
 	if (divider == (tmax_prod - startrdf) / 10) {
 		otherfile  << 0 << "," << delta_r << "," << 0 << "," << 0 << "," << 0 << "," << divider << "," << 0 << endl;
 	}
-	for (n = 2; n < size_bin; n++) {
+	for (n = 2; n < rdf_bin; n++) {
 		count = 0;
 
 		for (i = 0; i < N - 1; i++) {
