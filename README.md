@@ -1,3 +1,2 @@
-# domiMD
-Domi's First MD project written throughout my first summer researh in Sungroup NYU SHANGHAI
-May 2020 - July 2020
+# MDConsole
+A Console for Molecular Dynamics Simulations
