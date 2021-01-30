@@ -28,7 +28,7 @@ std::normal_distribution<double> normal(mean, stddev);
 const int N = 108;							// N is the number of particle within the system
 const int DIM = 3;							// DIM is dimension of the problem
 const int tmax_eq = 80000;						// maximum number of timestep or simulation duration
-const int tmax_prod = 20000;
+const int tmax_prod = 100000;
 const double rho = 0.8;						// System's volume density
 const double gamma = 1.0;					// Coefficient of fraction
 double dt = 0.0025;							// Simulation timestep size
@@ -75,9 +75,9 @@ int startrdf = 0;
 int write_traj = 500;
 int start_write_traj = 10000;
 
-double mean_b = 0.0;
-double stddev_b = sqrt(2.0 * kB * gamma * Init_Temp * mass);
-std::normal_distribution<double> normal_b(mean_b, stddev_b);
+//double mean_b = 0.0;
+//double stddev_b = sqrt(2.0 * kB * gamma * Init_Temp * mass);
+//std::normal_distribution<double> normal_b(mean_b, stddev_b);
 /////////////////////////////*Function declaration:*/////////////////////////////////
 
 // Initialize Particle Position
@@ -147,6 +147,7 @@ int main() {
 	double hist_count = 0;
 	double hist[rdf_bin] = { 0 };
 	int n = 0;
+	int index = 0;
 
 	
 
@@ -269,14 +270,14 @@ int main() {
 
 			Vel_Verlet_first(r, v, F, E_pot, E_kin, Temp);
 			E_tot = E_kin + E_pot;
-			Temp = ((E_kin / N) * 2 / (3 * kB));
+			Temp = ((E_kin / N)  / (3 * kB));
 			//cout << "first verlet is done " << endl;
 		}
 
 		else {
 			Vel_Verlet(r, v, F, E_pot, E_kin, Temp);
 			E_tot = E_kin + E_pot;
-			Temp = ((E_kin / N) * 2 / (3 * kB));
+			Temp = ((E_kin / N)  / (3 * kB));
 		
 		}
 		
@@ -357,17 +358,16 @@ int main() {
 
 	//Write Energy value at each time step into properties.csv
 
-	myfile.open("randomforce.csv");
-	myfile << "Ca[i]" << "," << "Ca_ave" << "," << "Cb[i]" << "," << "Cb_ave"<< endl;
+	
 
 	otherfile.open("rdf.csv");
 	otherfile << "r" << "," << "r_plus_dr" << "," << "gr_accum" << endl;
 
 	trajfile.open("traj_prod.csv");
-	trajfile << "t" << "N" << "," << "rx" << "," << "ry" << "," << "rz" << "," << "vx" << "," << "vy" << "," << "vz" << endl;
+	trajfile << "t" << "," << "N" << "," << "rx" << "," << "ry" << "," << "rz" << "," << "vx" << "," << "vy" << "," << "vz" << endl;
 
 	cvvfile.open("cvv.csv");
-	cvvfile << "t" << "," << "cvv_accum" << endl;
+	cvvfile << "Index" << "," << "t" <<","<<"cvv_accum"<< endl;
 
 	fullprop.open("fullprop_prod.txt");
 	fullprop << "t" << "," << "Potential" << "," << "Kinetic" << "," << "Total" << "," << "Temperature" << endl;
@@ -467,8 +467,9 @@ int main() {
 					cvv_accum[x] += cvv_ave[x];
 					//cout << ">>>>>>>>>>>>>>>>>> my cvv_accum[x] = " << cvv_accum[x] << endl;
 					if (t >= tmax_prod-N_frame) {
-						cvvfile << t << "," << cvv_accum[x] << "," << k << "," << cvv_accum[x] / cvvcount << endl;
+						cvvfile << (index - tmax_prod - N_frame) << "," << (index - tmax_prod - N_frame) * dt << "," << cvv_accum[x] / cvvcount << endl;
 					}
+					index++;
 					
 				}
 				cvvcount++;
@@ -484,7 +485,7 @@ int main() {
 
 
 	}
-	myfile.close();
+	
 	otherfile.close();
 	trajfile.close();
 	cvvfile.close();
@@ -1051,13 +1052,13 @@ void Vel_Verlet_Langevin(double r[N][DIM], double v[N][DIM], double F[N][DIM], d
 
 	//double randomforce = (2.0 *kB* gamma * Init_Temp * mass);
 	double random[N];
-	double random_b[N];
+	//double random_b[N];
 
 	double Ca[N];
-	double Cb[N];
+	//double Cb[N];
 
 	double Ca_ave=0;
-	double Cb_ave = 0;
+	//double Cb_ave = 0;
 
 	// Initialize a modified force 
 
