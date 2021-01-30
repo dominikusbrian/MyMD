@@ -1,2 +1,2 @@
 # MDConsole
-A Console for Molecular Dynamics Simulations
+Integrated Console for Molecular Simulations
