@@ -1,0 +1,17 @@
+Metadata-Version: 2.1
+Name: MDConsole
+Version: 0.0.2
+Summary: Integrated Console for Molecular Simulations.
+Home-page: https://github.com/dominikusbrian/MDConsole
+Author: dominikusbrian
+Author-email: dominikusbrian@nyu.com
+License: UNKNOWN
+Description: # MDConsole
+        Integrated Console for Molecular Simulations
+        
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown

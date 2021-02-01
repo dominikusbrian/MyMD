@@ -1,0 +1,7 @@
+README.md
+setup.py
+MDConsole/__init__.py
+MDConsole.egg-info/PKG-INFO
+MDConsole.egg-info/SOURCES.txt
+MDConsole.egg-info/dependency_links.txt
+MDConsole.egg-info/top_level.txt
