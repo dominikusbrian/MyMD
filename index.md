@@ -1,4 +1,5 @@
-## Welcome to GitHub Pages
+## Welcome to MDConsole !
+### Integrated Console for Molecular Simulations
 
 You can use the [editor on GitHub](https://github.com/dominikusbrian/MDConsole/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
 
