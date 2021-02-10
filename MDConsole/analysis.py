@@ -57,21 +57,22 @@ def calc_acceptancerate(filename, whichtemp,print_result):
         return ave_acceptance , temp_traj, Epot
 
 
-def calculate_structure (top,traj, atomA, atomB, atomC):
+def calculate_structure (top,traj, atomA, atomB, atomC, atomD):
     '''
     top = input topology file
     traj = input MD trajectory
-    atomA, atomB, atomC = 3 atoms selected as physical features
-    for pseudo angle atomB is located in the center
+    atomA, atomB, atomC, atomD = 4 atoms selected as physical features
     e2edist = the end-to-end distance is measured from euclidian distance between 
-    atomC and atomA.
+    atomA and atomD.
+    angle_1 = angle between A-B-C
+    anlge_2 = angle between A-C-D
     
-    Example
+    Usage example
     -----------
     >>> from MDConsole import analysis as anl
     >>> top = '/xspace/db4271/STCT/noTHF/triad_NOthf_bent_GR.prmtop'
     >>> traj = '/xspace/db4271/STCT/noTHF/remd_012_nothf.nc'
-    >>> time_GR, rgyr_GR, e2edist_GR, pseudo_angle_GR = anl.calculate_structure(top, traj, atomA, atomB, atomC)
+    >>> time_GR, rgyr_GR, e2edist_GR, angle_1_GR, angle_2_GR = anl.calculate_structure(top, traj, atomA, atomB, atomC, atomD)
 
     -----------
     '''
@@ -81,25 +82,28 @@ def calculate_structure (top,traj, atomA, atomB, atomC):
     time = []
     rgyr = []
     e2edist = []
-    pseudo_angle = []
+    angle_1 = []
+    angle_2 = []
     for ts in conf:
         #extract time
         myt = u.trajectory.time
         #calculate gryation radius
         gr = u.atoms.radius_of_gyration()
         # calculate end to end distance
-        # Index start from zero ,here atom A = @33 , B = @122, C= @193
-        myL = u.atoms[[atomA, atomC]]
+        myL = u.atoms[[atomA, atomD]]
         atom1 = myL.positions[0]
         atom2 = myL.positions[1]
         myL = distance.euclidean(atom1,atom2)
         # extract pseudo angles
         alpha = u.atoms[[atomA, atomB, atomC]]
-        myangle = alpha.angle
+	beta = u.atoms[[atomA,atomC,atomD]]
+        myangle1 = alpha.angle
+	myangle2 = beta.angle
         
         #append all the data to the list
         time.append(myt)
         rgyr.append(gr)
         e2edist.append(myL)
-        pseudo_angle.append(myangle .value())
-    return time, rgyr, e2edist, pseudo_angle 
+        angle_1.append(myangle1.value())
+	angle_2.append(myangle2.value())
+    return time, rgyr, e2edist, angle_1, angle_2 
