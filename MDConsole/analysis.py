@@ -57,7 +57,7 @@ def calc_acceptancerate(filename, whichtemp,print_result):
         return ave_acceptance , temp_traj, Epot
 
 
-def calculate_structure (top,traj, atomA, atomB, atomC, atomD):
+def calculate_structure (top, traj, atomA, atomB, atomC, atomD):
     '''
     top = input topology file
     traj = input MD trajectory
@@ -96,14 +96,16 @@ def calculate_structure (top,traj, atomA, atomB, atomC, atomD):
         myL = distance.euclidean(atom1,atom2)
         # extract pseudo angles
         alpha = u.atoms[[atomA, atomB, atomC]]
-	beta = u.atoms[[atomA,atomC,atomD]]
+        beta = u.atoms[[atomA, atomC, atomD]]
         myangle1 = alpha.angle
-	myangle2 = beta.angle
-        
+        myangle2 = beta.angle
         #append all the data to the list
         time.append(myt)
         rgyr.append(gr)
         e2edist.append(myL)
         angle_1.append(myangle1.value())
-	angle_2.append(myangle2.value())
-    return time, rgyr, e2edist, angle_1, angle_2 
+        angle_2.append(myangle2.value())
+    return time, rgyr, e2edist, angle_1, angle_2
+
+
+ 
