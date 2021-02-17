@@ -1,0 +1,5 @@
+# Notes for further automation of the amber MD simulation
+> Prepare MD run.mdin
+> Prepare auto.sh
+> Prepare amber_run.slurm
+$ sbatch auto.sh
