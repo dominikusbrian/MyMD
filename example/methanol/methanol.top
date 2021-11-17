@@ -1,0 +1,20 @@
+; OPLSAA topology for methanol
+; 
+; Jorgensen, W. L.; Tirado-Rives, J. Proc. Natl. Acad. Sci. U.S.A. 2005, 102, 6665.
+; Carl Caleman, Paul J. van Maaren, Minyan Hong, Jochen S. Hub, Luciano T. Costa and David van der Spoel, Force Field Benchmark of Organic Liquids: Density, Enthalpy of Vaporization, Heat Capacities, Surface Tension, Isothermal Compressibility, Volumetric Expansion Coefficient, and Dielectric Constant, J. Chem. Theor. Comput. 8 (2012) http://dx.doi.org/10.1021/ct200731v
+;
+;
+#include "/xspace/db4271/dipole_flip/OPLS/FF/oplsaaff.itp"
+#include "/xspace/db4271/dipole_flip/OPLS/ITP/methanol.itp"
+; CORRECTED DvdS 2011-03-02
+
+[ moleculetype ]
+; Name            nrexcl
+;methanol  3
+
+
+[ system ]
+methanol box
+
+[ molecules ]
+methanol	255
